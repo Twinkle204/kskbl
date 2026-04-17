@@ -1,0 +1,26 @@
+# 编译输出
+build/
+*.exe
+*.dll
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+
+# Visual Studio
+.vs/
+*.sln
+*.user
+*.suo
+
+# 第三方库源码（如果不需要）
+# external/
+
+# 临时文件
+*.log
+*.tmp
+
+# IDE 配置
+.idea/
+*.code-workspace
