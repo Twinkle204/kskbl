@@ -1,5 +1,6 @@
 # 编译输出
 build/
+bin/
 *.exe
 *.dll
 *.obj
@@ -7,6 +8,15 @@ build/
 *.pdb
 *.ilk
 *.exp
+
+# Qt 相关
+Makefile
+Makefile.*
+.qmake.stash
+moc_*
+qrc_*
+*.moc
+*.rst
 
 # Visual Studio
 .vs/
