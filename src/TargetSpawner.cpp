@@ -2,16 +2,13 @@
 #include "Target.h"
 
 #include <QRandomGenerator>
-#include <QtMath>
 
 TargetSpawner::TargetSpawner(QObject *parent)
     : QObject(parent)
     , m_targetIdCounter(0)
     , m_spawnTimer(0.0f)
     , m_spawnInterval(1.5f)
-    , m_maxTargets(5)
-    , m_spawnRangeMin(5.0f)
-    , m_spawnRangeMax(25.0f) {
+    , m_maxTargets(5) {
 }
 
 TargetSpawner::~TargetSpawner() {
@@ -53,13 +50,7 @@ Target* TargetSpawner::spawnTarget() {
     QVector3D position = getRandomSpawnPosition();
     TargetType type = getRandomTargetType();
 
-    float radius = 0.5f;
-    if (type == TargetType::RandomJump) {
-        radius = 0.8f;
-    } else if (type == TargetType::Circular) {
-        radius = 0.6f;
-    }
-
+    float radius = 1.0f;
     Target *target = new Target(m_targetIdCounter++, position, radius, type, this);
     target->setLifetime(3.0f + QRandomGenerator::global()->bounded(2.0f));
 
@@ -67,15 +58,10 @@ Target* TargetSpawner::spawnTarget() {
 }
 
 QVector3D TargetSpawner::getRandomSpawnPosition() const {
-    float distance = m_spawnRangeMin + QRandomGenerator::global()->bounded(m_spawnRangeMax - m_spawnRangeMin);
-    float angle = QRandomGenerator::global()->bounded(360.0f);
-    float height = -5.0f + QRandomGenerator::global()->bounded(10.0f);
-
-    float x = distance * qCos(qDegreesToRadians(angle));
-    float y = height;
-    float z = distance * qSin(qDegreesToRadians(angle));
-
-    return QVector3D(x, y, z);
+    float rx = -18.0f + QRandomGenerator::global()->bounded(36.0f);
+    float ry = -5.0f + QRandomGenerator::global()->bounded(10.0f);
+    float rz = -50.0f + QRandomGenerator::global()->bounded(30.0f);
+    return QVector3D(rx, ry, rz);
 }
 
 TargetType TargetSpawner::getRandomTargetType() const {

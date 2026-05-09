@@ -38,6 +38,9 @@ private:
     float m_spawnTimer;
     float m_spawnInterval;
     int m_maxTargets;
-    float m_spawnRangeMin;
-    float m_spawnRangeMax;
+
+    // Room bounds
+    static constexpr float ROOM_W = 30.0f;
+    static constexpr float ROOM_H = 8.0f;
+    static constexpr float ROOM_D = 40.0f;
 };

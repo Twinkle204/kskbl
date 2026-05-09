@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QResizeEvent>
 #include <QTimer>
 #include <QLabel>
 #include <QStackedWidget>
@@ -25,6 +26,7 @@ public:
     bool isPaused() const;
 
     void showGameStats();
+    QRect getFrameRect() const;
 
 signals:
     void gameStarted();
@@ -36,6 +38,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -52,8 +55,6 @@ private:
     void drawBackground(QPainter &painter);
     void drawGameOver(QPainter &painter);
 
-    QPoint getLastMousePos() const { return m_lastMousePos; }
-
     GameEngine *m_gameEngine;
     ScoreManager *m_scoreManager;
 
@@ -64,7 +65,6 @@ private:
     bool m_paused;
     int m_gameTimeRemaining;
 
-    QPoint m_lastMousePos;
     bool m_mouseCaptured;
 
     int m_score;

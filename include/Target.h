@@ -43,6 +43,9 @@ public:
     void setHit(bool hit) { m_hit = hit; }
     bool isExpired() const { return m_expired; }
 
+    float screenX() const { return m_screenX; }
+    float screenY() const { return m_screenY; }
+
     TargetType type() const { return m_type; }
     QColor color() const { return m_color; }
 
@@ -79,4 +82,7 @@ private:
     float m_angularSpeed;
     float m_orbitRadius;
     float m_angle;
+
+    float m_screenX;
+    float m_screenY;
 };

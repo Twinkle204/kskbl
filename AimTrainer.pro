@@ -20,6 +20,7 @@ SOURCES += \
     src/MainWindow.cpp \
     src/GameWidget.cpp \
     src/GameEngine.cpp \
+    src/RoomRenderer.cpp \
     src/Target.cpp \
     src/TargetSpawner.cpp \
     src/ScoreManager.cpp \
@@ -30,6 +31,7 @@ HEADERS += \
     include/MainWindow.h \
     include/GameWidget.h \
     include/GameEngine.h \
+    include/RoomRenderer.h \
     include/Target.h \
     include/TargetSpawner.h \
     include/ScoreManager.h \

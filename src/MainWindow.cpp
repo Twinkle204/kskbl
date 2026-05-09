@@ -4,6 +4,9 @@
 #include <QMessageBox>
 #include <QInputDialog>
 
+
+//这个文件内设置了我们的主界面
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_gameWidget(nullptr)

@@ -21,27 +21,26 @@ Target::Target(int id, QVector3D position, float radius, TargetType type, QObjec
     , m_time(0.0f)
     , m_angularSpeed(0.0f)
     , m_orbitRadius(0.0f)
-    , m_angle(0.0f) {
+    , m_angle(0.0f)
+    , m_screenX(0.5f)
+    , m_screenY(0.5f) {
+
+    m_color = QColor(220, 40, 40);
 
     switch (type) {
-        case TargetType::Static:
-            m_color = QColor(255, 100, 100);
-            break;
         case TargetType::Linear:
-            m_color = QColor(100, 255, 100);
-            m_velocity = QVector3D(2.0f, 0.5f, 0.0f);
+            m_velocity = QVector3D(2.0f, 1.0f, 0.0f);
             break;
         case TargetType::Sine:
-            m_color = QColor(100, 100, 255);
             m_velocity = QVector3D(3.0f, 0.0f, 0.0f);
             break;
         case TargetType::Circular:
-            m_color = QColor(255, 255, 100);
             m_orbitRadius = 3.0f;
             m_angularSpeed = 2.0f;
             break;
         case TargetType::RandomJump:
-            m_color = QColor(255, 100, 255);
+            break;
+        case TargetType::Static:
             break;
     }
 }
@@ -63,22 +62,30 @@ void Target::update(float deltaTime) {
 }
 
 void Target::updatePosition(float deltaTime) {
+    float xMin = -20.0f;
+    float xMax = 20.0f;
+    float yMin = -7.0f;
+    float yMax = 7.0f;
+
     switch (m_type) {
         case TargetType::Static:
             break;
 
         case TargetType::Linear:
             m_position += m_velocity * deltaTime;
-            if (qAbs(m_position.x()) > 15.0f || qAbs(m_position.y()) > 10.0f) {
-                m_velocity = -m_velocity;
+            if (m_position.x() < xMin || m_position.x() > xMax) {
+                m_velocity.setX(-m_velocity.x());
+            }
+            if (m_position.y() < yMin || m_position.y() > yMax) {
+                m_velocity.setY(-m_velocity.y());
             }
             break;
 
         case TargetType::Sine:
             m_position += m_velocity * deltaTime;
             m_position.setY(m_startPosition.y() + qSin(m_time * 3.0f) * 3.0f);
-            if (qAbs(m_position.x()) > 15.0f) {
-                m_velocity = -m_velocity;
+            if (m_position.x() < xMin || m_position.x() > xMax) {
+                m_velocity.setX(-m_velocity.x());
             }
             break;
 
@@ -89,13 +96,19 @@ void Target::updatePosition(float deltaTime) {
             break;
 
         case TargetType::RandomJump:
-        if (m_time > 1.5f && QRandomGenerator::global()->bounded(60) == 0) {
-                m_position.setX(m_startPosition.x() + (QRandomGenerator::global()->bounded(10) - 5) * 1.0f);
-                m_position.setY(m_startPosition.y() + (QRandomGenerator::global()->bounded(6) - 3) * 1.0f);
+            if (m_time > 1.5f && QRandomGenerator::global()->bounded(60) == 0) {
+                float jx = xMin + 5.0f + QRandomGenerator::global()->bounded(xMax - xMin - 10.0f);
+                float jy = yMin + 3.0f + QRandomGenerator::global()->bounded(yMax - yMin - 6.0f);
+                m_position.setX(jx);
+                m_position.setY(jy);
+                m_startPosition = m_position;
                 m_time = 0.0f;
             }
             break;
     }
+
+    m_position.setX(qBound(xMin, m_position.x(), xMax));
+    m_position.setY(qBound(yMin, m_position.y(), yMax));
 }
 
 void Target::render(QPainter &painter,
@@ -104,19 +117,45 @@ void Target::render(QPainter &painter,
                     float cameraPitch,
                     int screenWidth,
                     int screenHeight) {
-
     if (m_hit) return;
 
-    QPoint screenPos = worldToScreen(m_position, cameraPos, cameraYaw, cameraPitch,
-                                     screenWidth, screenHeight);
+    float yawRad   = qDegreesToRadians(cameraYaw);
+    float pitchRad = qDegreesToRadians(cameraPitch);
+    float fx = qCos(pitchRad) * qSin(yawRad);
+    float fy = qSin(pitchRad);
+    float fz = -qCos(pitchRad) * qCos(yawRad);
+    QVector3D forward(fx, fy, fz);
 
-    if (screenPos.x() < -100 || screenPos.x() > screenWidth + 100 ||
-        screenPos.y() < -100 || screenPos.y() > screenHeight + 100) {
-        return;
-    }
+    QVector3D worldUp(0.0f, 1.0f, 0.0f);
+    QVector3D right = QVector3D::crossProduct(worldUp, forward).normalized();
+    QVector3D up = QVector3D::crossProduct(forward, right).normalized();
 
-    float dist = (m_position - cameraPos).length();
-    float visualRadius = qBound(10.0f, m_radius * 300.0f / dist, 100.0f);
+    QVector3D rel = m_position - cameraPos;
+    float cz = QVector3D::dotProduct(rel, forward);
+    if (cz <= 0.1f) return;
+
+    float cx = QVector3D::dotProduct(rel, right);
+    float cy = QVector3D::dotProduct(rel, up);
+
+    float aspect = (float)screenWidth / (float)screenHeight;
+    float halfFov = qDegreesToRadians(90.0f / 2.0f);
+    float tanFov = qTan(halfFov);
+
+    float nx = cx / (cz * tanFov * aspect);
+    float ny = cy / (cz * tanFov);
+
+    float sx = (1.0f - nx) * 0.5f * screenWidth;
+    float sy = (1.0f + ny) * 0.5f * screenHeight;
+
+    if (sx < -200 || sx > screenWidth + 200 || sy < -200 || sy > screenHeight + 200) return;
+
+    m_screenX = sx / screenWidth;
+    m_screenY = sy / screenHeight;
+
+    float screenDist = cz;
+    float angularRadius = m_radius / screenDist;
+    float visualRadius = angularRadius * screenHeight / (2.0f * tanFov);
+    visualRadius = qBound(6.0f, visualRadius, 80.0f);
 
     float lifetimeRatio = m_lifetime / m_maxLifetime;
     int alpha = static_cast<int>(255 * qBound(0.0f, lifetimeRatio * 2.0f, 1.0f));
@@ -124,67 +163,37 @@ void Target::render(QPainter &painter,
     QColor targetColor = m_color;
     targetColor.setAlpha(alpha);
 
-    QColor outerColor = targetColor.darker(150);
-    outerColor.setAlpha(alpha);
-    QColor innerColor = targetColor.lighter(150);
-
+    painter.save();
     painter.setPen(Qt::NoPen);
 
-    QRadialGradient gradient(screenPos, visualRadius);
-    gradient.setColorAt(0.0, innerColor);
-    gradient.setColorAt(0.6, targetColor);
-    gradient.setColorAt(1.0, outerColor);
+    QRadialGradient gradient(QPointF(sx, sy), visualRadius);
+    gradient.setColorAt(0.0, QColor(255, 120, 120, alpha));
+    gradient.setColorAt(0.5, targetColor);
+    gradient.setColorAt(1.0, QColor(120, 20, 20, alpha));
 
     painter.setBrush(gradient);
-    painter.drawEllipse(screenPos, static_cast<int>(visualRadius), static_cast<int>(visualRadius));
+    painter.drawEllipse(QPointF(sx, sy), (int)visualRadius, (int)visualRadius);
 
-    painter.setBrush(Qt::NoBrush);
-    QColor ringColor = Qt::white;
-    ringColor.setAlpha(alpha);
+    QColor ringColor(255, 255, 255, alpha);
     QPen ringPen(ringColor, 2);
     painter.setPen(ringPen);
-    painter.drawEllipse(screenPos, static_cast<int>(visualRadius * 0.6f), static_cast<int>(visualRadius * 0.6f));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawEllipse(QPointF(sx, sy), (int)(visualRadius / 2.0f), (int)(visualRadius / 2.0f));
 
-    if (visualRadius > 20) {
-        QColor whiteColor = Qt::white;
-        whiteColor.setAlpha(alpha);
-        painter.setPen(QPen(whiteColor, 1));
-        painter.drawEllipse(screenPos, 3, 3);
+    if (visualRadius > 15) {
+        QColor dotColor(255, 255, 200, alpha);
+        painter.setPen(QPen(dotColor, 1));
+        painter.drawEllipse(QPointF(sx, sy), 3, 3);
     }
+
+    painter.restore();
 }
 
-QPoint Target::worldToScreen(const QVector3D &worldPos,
-                             const QVector3D &cameraPos,
-                             float yaw,
-                             float pitch,
-                             int screenWidth,
-                             int screenHeight) const {
-
-    QVector3D relPos = worldPos - cameraPos;
-
-    float yawRad = qDegreesToRadians(yaw);
-    float pitchRad = qDegreesToRadians(pitch);
-
-    float x = relPos.x();
-    float z = relPos.z();
-    float y = relPos.y();
-
-    float rx = x * qCos(yawRad) - z * qSin(yawRad);
-    float rz = x * qSin(yawRad) + z * qCos(yawRad);
-
-    float ry = y * qCos(pitchRad) - rz * qSin(pitchRad);
-    float rz2 = y * qSin(pitchRad) + rz * qCos(pitchRad);
-
-    if (rz2 <= 0.1f) {
-        return QPoint(-10000, -10000);
-    }
-
-    float fov = 90.0f;
-    float aspect = static_cast<float>(screenWidth) / screenHeight;
-    float tanFov = qTan(qDegreesToRadians(fov / 2.0f));
-
-    float sx = (rx / (rz2 * tanFov * aspect)) * (screenWidth / 2.0f) + screenWidth / 2.0f;
-    float sy = (-ry / (rz2 * tanFov)) * (screenHeight / 2.0f) + screenHeight / 2.0f;
-
-    return QPoint(static_cast<int>(sx), static_cast<int>(sy));
+QPoint Target::worldToScreen(const QVector3D &,
+                             const QVector3D &,
+                             float,
+                             float,
+                             int,
+                             int) const {
+    return QPoint(0, 0);
 }

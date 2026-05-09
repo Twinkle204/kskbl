@@ -4,8 +4,6 @@
 
 #include <QPainter>
 #include <QMessageBox>
-#include <QInputDialog>
-#include <QtMath>
 
 GameWidget::GameWidget(QWidget *parent)
     : QWidget(parent)
@@ -16,7 +14,6 @@ GameWidget::GameWidget(QWidget *parent)
     , m_gameRunning(false)
     , m_paused(false)
     , m_gameTimeRemaining(60)
-    , m_lastMousePos(0, 0)
     , m_mouseCaptured(false)
     , m_score(0)
     , m_hits(0)
@@ -50,6 +47,7 @@ void GameWidget::startGame() {
     m_paused = false;
     m_mouseCaptured = true;
 
+    m_gameEngine->setScreenSize(width(), height());
     m_gameEngine->reset();
     m_scoreManager->reset();
 
@@ -57,6 +55,7 @@ void GameWidget::startGame() {
     m_gameTimer->start();
 
     setCursor(Qt::BlankCursor);
+    QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
     grabKeyboard();
     grabMouse();
 
@@ -124,7 +123,7 @@ void GameWidget::showGameStats() {
     QMessageBox::information(this, "游戏结束", stats);
 }
 
-void GameWidget::paintEvent(QPaintEvent *event) {
+void GameWidget::paintEvent(QPaintEvent *) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
@@ -137,12 +136,19 @@ void GameWidget::paintEvent(QPaintEvent *event) {
         painter.setFont(QFont("Arial", 24));
         painter.drawText(rect(), Qt::AlignCenter, "游戏暂停\n按 ESC 继续");
     } else {
-        drawBackground(painter);
+        painter.fillRect(rect(), QColor(12, 14, 18));
 
+        m_gameEngine->renderBackground(painter);
         m_gameEngine->render(painter);
-
         drawCrosshair(painter);
         drawHUD(painter);
+    }
+}
+
+void GameWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    if (m_gameEngine) {
+        m_gameEngine->setScreenSize(width(), height());
     }
 }
 
@@ -150,57 +156,56 @@ void GameWidget::drawCrosshair(QPainter &painter) {
     int cx = width() / 2;
     int cy = height() / 2;
 
-    QPen crosshairPen(Qt::white, 2);
-    crosshairPen.setCapStyle(Qt::RoundCap);
-    painter.setPen(crosshairPen);
+    QPen pen(QColor(200, 170, 60), 2);
+    pen.setCapStyle(Qt::RoundCap);
+    painter.setPen(pen);
 
-    painter.drawLine(cx - 15, cy, cx - 5, cy);
-    painter.drawLine(cx + 5, cy, cx + 15, cy);
-    painter.drawLine(cx, cy - 15, cx, cy - 5);
-    painter.drawLine(cx, cy + 5, cx, cy + 15);
+    painter.drawLine(cx - 14, cy, cx - 5, cy);
+    painter.drawLine(cx + 5, cy, cx + 14, cy);
+    painter.drawLine(cx, cy - 14, cx, cy - 5);
+    painter.drawLine(cx, cy + 5, cx, cy + 14);
 
-    QPen shadowPen(Qt::black, 2);
-    shadowPen.setCapStyle(Qt::RoundCap);
-    painter.setPen(shadowPen);
-    painter.setOpacity(0.5);
-    painter.drawEllipse(QPoint(cx, cy), 3, 3);
-    painter.setOpacity(1.0);
+    QPen dotPen(QColor(255, 255, 200), 2);
+    painter.setPen(dotPen);
+    painter.drawEllipse(QPoint(cx, cy), 2, 2);
 }
 
 void GameWidget::drawHUD(QPainter &painter) {
-    painter.setPen(Qt::white);
-    painter.setFont(QFont("Arial", 16));
+    painter.setPen(QColor(200, 170, 60));
+    painter.setFont(QFont("Arial", 16, QFont::Bold));
 
     painter.drawText(20, 30, QString("得分: %1").arg(m_score));
-    painter.drawText(20, 55, QString("时间: %1s").arg(m_gameTimeRemaining));
+    painter.drawText(width() - 100, 30, QString("时间: %1s").arg(m_gameTimeRemaining));
 
     float accuracy = (m_hits + m_misses) > 0
         ? (float)m_hits / (m_hits + m_misses) * 100.0f
         : 0.0f;
-    painter.drawText(width() - 150, 30, QString("命中率: %1%").arg(accuracy, 0, 'f', 1));
+    painter.setFont(QFont("Arial", 14));
+    painter.drawText(20, height() - 20,
+                     QString("命中率: %1%").arg(accuracy, 0, 'f', 1));
 }
 
 void GameWidget::drawBackground(QPainter &painter) {
-    painter.fillRect(rect(), QColor(20, 20, 30));
+    painter.fillRect(rect(), QColor(18, 20, 24));
 
-    int gridSize = 50;
-    QPen gridPen(QColor(50, 50, 60), 1);
-    painter.setPen(gridPen);
+    painter.setPen(QColor(200, 170, 60, 150));
+    painter.setFont(QFont("Arial", 16));
+    painter.drawText(rect(), Qt::AlignCenter, "AimTrainer");
 
-    for (int x = 0; x < width(); x += gridSize) {
-        painter.drawLine(x, 0, x, height());
-    }
-    for (int y = 0; y < height(); y += gridSize) {
-        painter.drawLine(0, y, width(), y);
-    }
+    painter.setPen(QColor(160, 160, 160));
+    painter.setFont(QFont("Arial", 14));
+    painter.drawText(rect().adjusted(0, 60, 0, 0), Qt::AlignCenter,
+                     "按 Enter 开始游戏\n鼠标移动控制视角  点击瞄准");
 }
 
 void GameWidget::drawGameOver(QPainter &painter) {
-    painter.setPen(Qt::white);
-    painter.setFont(QFont("Arial", 32, QFont::Bold));
+    painter.setPen(QColor(200, 170, 60));
+    painter.setFont(QFont("Arial", 36, QFont::Bold));
     painter.drawText(rect(), Qt::AlignCenter, "AimTrainer");
     painter.setFont(QFont("Arial", 16));
-    painter.drawText(rect().adjusted(0, 60, 0, 0), Qt::AlignCenter, "按 Enter 开始游戏");
+    painter.setPen(QColor(160, 160, 160));
+    painter.drawText(rect().adjusted(0, 60, 0, 0), Qt::AlignCenter,
+                     "按 Enter 开始游戏\n鼠标移动控制视角  点击瞄准");
 }
 
 void GameWidget::keyPressEvent(QKeyEvent *event) {
@@ -225,17 +230,25 @@ void GameWidget::keyReleaseEvent(QKeyEvent *event) {
     m_keysPressed[static_cast<Qt::Key>(event->key())] = false;
 }
 
-void GameWidget::mouseMoveEvent(QMouseEvent *event) {
+void GameWidget::mouseMoveEvent(QMouseEvent *) {
     if (m_mouseCaptured && m_gameRunning && !m_paused) {
-        QPoint delta = event->pos() - m_lastMousePos;
-        m_gameEngine->handleMouseMove(delta.x(), delta.y());
+        QPoint globalCenter = mapToGlobal(QPoint(width() / 2, height() / 2));
+        QPoint currentGlobal = QCursor::pos();
+
+        float dx = static_cast<float>(currentGlobal.x() - globalCenter.x());
+        float dy = static_cast<float>(currentGlobal.y() - globalCenter.y());
+
+        if (dx != 0.0f || dy != 0.0f) {
+            m_gameEngine->handleMouseMove(dx, dy);
+            QCursor::setPos(globalCenter);
+            update();
+        }
     }
-    m_lastMousePos = event->pos();
 }
 
 void GameWidget::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && m_gameRunning && !m_paused) {
-        bool hit = m_gameEngine->handleClick(width() / 2, height() / 2);
+        bool hit = m_gameEngine->handleClickAt(width() / 2, height() / 2);
 
         if (hit) {
             m_hits++;
@@ -250,24 +263,22 @@ void GameWidget::mousePressEvent(QMouseEvent *event) {
     }
 }
 
-void GameWidget::mouseReleaseEvent(QMouseEvent *event) {
-    Q_UNUSED(event);
+void GameWidget::mouseReleaseEvent(QMouseEvent *) {
 }
 
 void GameWidget::onTimeout() {
     m_gameEngine->update(16.0f / 1000.0f);
-
-    if (m_gameTimeRemaining <= 0) {
-        endGame();
-        showGameStats();
-        return;
-    }
-
     update();
 }
 
 void GameWidget::updateHUD() {
     if (m_gameRunning && !m_paused) {
+        if (m_gameTimeRemaining <= 1) {
+            m_gameTimeRemaining = 0;
+            endGame();
+            showGameStats();
+            return;
+        }
         m_gameTimeRemaining--;
         update();
     }

@@ -34,3 +34,7 @@ qrc_*
 # IDE 配置
 .idea/
 *.code-workspace
+
+#md文件配置
+*.md
+!README.md
